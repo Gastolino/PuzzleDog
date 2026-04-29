@@ -24,6 +24,7 @@ export const PuzzleView: React.FC = () => {
     rating,
     boardLightColor,
     boardDarkColor,
+    waitingForOpponent,
     tryMove,
     useHint,
     solvePuzzle,
@@ -82,7 +83,7 @@ export const PuzzleView: React.FC = () => {
           onMove={tryMove}
           flashSquares={flashSquares}
           hintSquare={hintSquare}
-          disabled={!isSolving}
+          disabled={!isSolving || waitingForOpponent}
           lightSquareColor={boardLightColor}
           darkSquareColor={boardDarkColor}
         />

@@ -39,6 +39,7 @@ interface SessionState {
   offlinePuzzleCount: number;
   isOffline: boolean;
   gaveUp: boolean;
+  waitingForOpponent: boolean;
 }
 
 interface AppActions {
@@ -109,6 +110,7 @@ const defaultSession: SessionState = {
   offlinePuzzleCount: 0,
   isOffline: false,
   gaveUp: false,
+  waitingForOpponent: false,
 };
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -198,8 +200,8 @@ export const useAppStore = create<AppState>()(
 
       tryMove: (from, to, promotion) => {
         const state = get();
-        const { currentPuzzle, chess, solutionIdx, status } = state;
-        if (!currentPuzzle || !chess || status !== 'solving') return false;
+        const { currentPuzzle, chess, solutionIdx, status, waitingForOpponent } = state;
+        if (!currentPuzzle || !chess || status !== 'solving' || waitingForOpponent) return false;
 
         const expected = uciToMove(currentPuzzle.solution[solutionIdx]);
         const isCorrect =
@@ -259,7 +261,8 @@ export const useAppStore = create<AppState>()(
           return true;
         }
 
-        set({ fen: newFen, solutionIdx: nextIdx, flashSquares: flash, hintSquare: null });
+        // Lock the board while the opponent's response auto-plays
+        set({ fen: newFen, solutionIdx: nextIdx, flashSquares: flash, hintSquare: null, waitingForOpponent: true });
 
         setTimeout(() => {
           const s = get();
@@ -274,6 +277,7 @@ export const useAppStore = create<AppState>()(
             solutionIdx: nextIdx + 1,
             flashSquares: {},
             hintSquare: null,
+            waitingForOpponent: false,
           });
         }, 500);
 
