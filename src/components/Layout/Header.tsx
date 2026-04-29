@@ -9,7 +9,8 @@ const NAV: { label: string; value: View }[] = [
 ];
 
 export const Header: React.FC = () => {
-  const { rating, ratingHistory, streak, view, setView } = useAppStore();
+  const { rating, ratingHistory, streak, view, setView, offlinePuzzleCount, isOffline } =
+    useAppStore();
 
   const last10 = ratingHistory.slice(-10);
   const trend = last10.length >= 2 ? last10[last10.length - 1].rating - last10[0].rating : 0;
@@ -19,9 +20,21 @@ export const Header: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-12">
 
-          <span className="font-semibold text-[#e2dfd8] tracking-tight text-sm">
-            PuzzleDog
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-[#e2dfd8] tracking-tight text-sm">
+              PuzzleDog
+            </span>
+            {/* Offline indicator */}
+            {isOffline ? (
+              <span className="text-xs text-[#888882] border border-[#2a2a2a] rounded px-1.5 py-0.5">
+                offline · {offlinePuzzleCount} puzzles
+              </span>
+            ) : offlinePuzzleCount > 0 ? (
+              <span className="hidden sm:inline text-xs text-[#4a4a46]">
+                {offlinePuzzleCount} cached
+              </span>
+            ) : null}
+          </div>
 
           <nav className="flex items-center gap-0.5">
             {NAV.map(({ label, value }) => (
