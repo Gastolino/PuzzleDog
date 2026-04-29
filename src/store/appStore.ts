@@ -36,6 +36,7 @@ interface SessionState {
   hintSquare: string | null;
   offlinePuzzleCount: number;
   isOffline: boolean;
+  gaveUp: boolean;
 }
 
 interface AppActions {
@@ -43,6 +44,7 @@ interface AppActions {
   loadPuzzle: () => Promise<void>;
   tryMove: (from: string, to: string, promotion?: string) => boolean;
   useHint: () => string | null;
+  solvePuzzle: () => Promise<void>;
   analyzeCurrentPosition: () => Promise<void>;
   nextPuzzle: () => Promise<void>;
   setTheme: (theme: string | null) => void;
@@ -103,6 +105,7 @@ const defaultSession: SessionState = {
   hintSquare: null,
   offlinePuzzleCount: 0,
   isOffline: false,
+  gaveUp: false,
 };
 
 // ─── Store ────────────────────────────────────────────────────────────────────
@@ -276,8 +279,57 @@ export const useAppStore = create<AppState>()(
         const { currentPuzzle, solutionIdx, status, hintsUsed } = get();
         if (!currentPuzzle || status !== 'solving') return null;
         const move = uciToMove(currentPuzzle.solution[solutionIdx]);
-        set({ hintsUsed: hintsUsed + 1, hintSquare: move.to });
-        return move.to;
+        // Highlight the FROM square (the piece to pick up)
+        set({ hintsUsed: hintsUsed + 1, hintSquare: move.from });
+        return move.from;
+      },
+
+      solvePuzzle: async () => {
+        const state = get();
+        const { currentPuzzle, chess, solutionIdx, status } = state;
+        if (!currentPuzzle || !chess || status !== 'solving') return;
+
+        // Disable the board during playback
+        set({ status: 'loading', hintSquare: null });
+
+        const elapsed = Date.now() - state.startTime;
+        const remaining = currentPuzzle.solution.slice(solutionIdx);
+
+        // Play each remaining move with a short delay so the player can follow
+        for (let i = 0; i < remaining.length; i++) {
+          await new Promise<void>(r => setTimeout(r, i === 0 ? 400 : 750));
+          const move = uciToMove(remaining[i]);
+          try {
+            chess.move({ from: move.from, to: move.to, promotion: move.promotion as 'q' | 'r' | 'b' | 'n' | undefined });
+          } catch { break; }
+          const flash = {
+            [move.from]: { backgroundColor: 'rgba(226,223,216,0.18)' },
+            [move.to]:   { backgroundColor: 'rgba(226,223,216,0.32)' },
+          };
+          set({ fen: chess.fen(), flashSquares: flash });
+          await new Promise<void>(r => setTimeout(r, 350));
+          set({ flashSquares: {} });
+        }
+
+        // Count as a loss — reset streak, apply rating penalty
+        const ratingChange = calculateRatingChange(state.rating, currentPuzzle.rating, 0);
+        const newRating = Math.max(100, state.rating + ratingChange);
+        set({
+          solutionIdx: currentPuzzle.solution.length,
+          status: 'success',
+          gaveUp: true,
+          rating: newRating,
+          ratingHistory: [...state.ratingHistory.slice(-99), {
+            date: new Date().toISOString(),
+            rating: newRating,
+            puzzleId: currentPuzzle.id,
+            result: 'loss',
+          }],
+          themeStats: updateThemeStats(state.themeStats, currentPuzzle.themes, 'loss', elapsed),
+          streak: 0,
+          totalAttempted: state.totalAttempted + 1,
+          flashSquares: {},
+        });
       },
 
       analyzeCurrentPosition: async () => {

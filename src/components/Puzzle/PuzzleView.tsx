@@ -9,40 +9,48 @@ export const PuzzleView: React.FC = () => {
     status,
     wrongMoves,
     hintsUsed,
+    gaveUp,
     flashSquares,
     hintSquare,
     rating,
     tryMove,
     useHint,
+    solvePuzzle,
     nextPuzzle,
-    analyzeCurrentPosition,
     loadPuzzle,
   } = useAppStore();
 
-  if (status === 'loading' || status === 'idle') {
+  if (status === 'idle') {
     return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
-        {status === 'loading' ? (
-          <div className="w-6 h-6 border-2 border-[#e2dfd8] border-t-transparent rounded-full animate-spin" />
-        ) : (
-          <button
-            onClick={() => loadPuzzle()}
-            className="px-5 py-2 bg-[#222] hover:bg-[#2a2a2a] border border-[#2a2a2a] text-[#e2dfd8] rounded text-sm transition-colors"
-          >
-            Load Puzzle
-          </button>
-        )}
+      <div className="flex items-center justify-center h-64">
+        <button
+          onClick={() => loadPuzzle()}
+          className="px-5 py-2 bg-[#222] hover:bg-[#2a2a2a] border border-[#2a2a2a] text-[#e2dfd8] rounded text-sm transition-colors"
+        >
+          Load Puzzle
+        </button>
+      </div>
+    );
+  }
+
+  if (status === 'loading' && !currentPuzzle) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-6 h-6 border-2 border-[#e2dfd8] border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
 
   if (!currentPuzzle) return null;
 
-  const isSolving = status === 'solving' || status === 'analyzing' || status === 'failed';
+  // Board is interactive only when the player should be moving
+  const isSolving = status === 'solving' || status === 'failed';
+  // During solution playback (status=loading after gaveUp trigger), board is locked
+  const isPlaying = status === 'loading' && !!currentPuzzle;
 
   return (
     <div className="flex flex-col gap-3 w-full">
-      {/* Minimal info bar — puzzle rating only */}
+      {/* Info bar */}
       <div className="flex items-center justify-between px-1">
         <span className="text-xs text-[#888882]">
           {currentPuzzle.playerColor === 'w' ? 'White' : 'Black'} to move
@@ -61,19 +69,26 @@ export const PuzzleView: React.FC = () => {
           disabled={!isSolving}
         />
 
-        {/* Success overlay */}
+        {/* Solution playback overlay */}
+        {isPlaying && (
+          <div className="absolute inset-0 flex items-end justify-center pb-4 pointer-events-none z-10">
+            <span className="text-xs text-[#888882] bg-[#111]/80 px-3 py-1 rounded">
+              Showing solution...
+            </span>
+          </div>
+        )}
+
+        {/* Completion overlay */}
         {status === 'success' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#111]/80 rounded z-20">
             <div className="text-center p-6">
               <p className="text-xl font-semibold text-[#e2dfd8] mb-1">
-                {wrongMoves === 0 && hintsUsed === 0 ? 'Solved' : 'Solved'}
+                {gaveUp ? 'Solution shown' : 'Solved'}
               </p>
-              <p className="text-sm text-[#888882] mb-4">
-                Rating: {rating}
-              </p>
+              <p className="text-sm text-[#888882] mb-4">Rating: {rating}</p>
               <button
                 onClick={() => nextPuzzle()}
-                className="px-6 py-2 bg-[#e2dfd8] text-[#111] rounded text-sm font-medium transition-opacity hover:opacity-80"
+                className="px-6 py-2 bg-[#e2dfd8] text-[#111] rounded text-sm font-medium hover:opacity-80 transition-opacity"
               >
                 Next
               </button>
@@ -82,7 +97,7 @@ export const PuzzleView: React.FC = () => {
         )}
       </div>
 
-      {/* Controls */}
+      {/* Controls — visible while solving */}
       {isSolving && (
         <div className="flex items-center gap-2">
           <button
@@ -91,19 +106,21 @@ export const PuzzleView: React.FC = () => {
           >
             Hint{hintsUsed > 0 ? ` (${hintsUsed})` : ''}
           </button>
+
           <button
-            onClick={() => analyzeCurrentPosition()}
-            disabled={status === 'analyzing'}
-            className="px-4 py-1.5 bg-[#1a1a1a] hover:bg-[#222] border border-[#2a2a2a] text-[#e2dfd8] rounded text-sm transition-colors disabled:opacity-40"
+            onClick={() => solvePuzzle()}
+            className="px-4 py-1.5 bg-[#1a1a1a] hover:bg-[#222] border border-[#2a2a2a] text-[#e2dfd8] rounded text-sm transition-colors"
           >
-            {status === 'analyzing' ? 'Analyzing...' : 'Analyze'}
+            Solve
           </button>
+
           <button
             onClick={() => nextPuzzle()}
             className="ml-auto px-4 py-1.5 bg-[#1a1a1a] hover:bg-[#222] border border-[#2a2a2a] text-[#888882] rounded text-sm transition-colors"
           >
             Skip
           </button>
+
           {wrongMoves > 0 && (
             <span className="text-xs text-[#c8a8a8]">{wrongMoves} wrong</span>
           )}
