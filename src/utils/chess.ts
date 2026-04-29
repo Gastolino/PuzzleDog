@@ -1,5 +1,6 @@
-import { Chess } from 'chess.js';
-import type { Square } from 'chess.js';
+import { parsePgn, startingPosition } from 'chessops/pgn';
+import { parseSan } from 'chessops/san';
+import { makeFen, INITIAL_FEN } from 'chessops/fen';
 import type { LichessPuzzle, ProcessedPuzzle } from '../types';
 
 export function uciToMove(uci: string): { from: string; to: string; promotion?: string } {
@@ -10,30 +11,38 @@ export function uciToMove(uci: string): { from: string; to: string; promotion?: 
   };
 }
 
-export function processPuzzle(raw: LichessPuzzle): ProcessedPuzzle {
-  const chess = new Chess();
+/** Uses chessops (Lichess's own chess library) to replay the game PGN to
+ *  exactly initialPly half-moves, returning the correct puzzle FEN. */
+function fenAtPly(pgn: string, targetPly: number): string {
   try {
-    chess.loadPgn(raw.game.pgn);
+    const games = parsePgn(pgn);
+    const game = games[0];
+    if (!game) return INITIAL_FEN;
+
+    const pos = startingPosition(game.headers).unwrap();
+    let ply = 0;
+
+    for (const nodeData of game.moves.mainline()) {
+      if (ply >= targetPly) break;
+      const move = parseSan(pos, nodeData.san);
+      if (!move) break;
+      pos.play(move);
+      ply++;
+    }
+
+    return makeFen(pos.toSetup());
   } catch {
-    chess.load('rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+    return INITIAL_FEN;
   }
+}
 
-  const history = chess.history({ verbose: true });
-  const puzzle = new Chess();
-
-  for (let i = 0; i < raw.puzzle.initialPly && i < history.length; i++) {
-    puzzle.move(history[i]);
-  }
-
-  // Derive player color from the piece on the from-square of solution[0].
-  // This is ground truth from Lichess and avoids any off-by-one in initialPly.
-  const firstFrom = (raw.puzzle.solution[0] ?? '').slice(0, 2) as Square;
-  const pieceAtFrom = firstFrom ? puzzle.get(firstFrom) : null;
-  const playerColor: 'w' | 'b' = pieceAtFrom?.color ?? puzzle.turn();
+export function processPuzzle(raw: LichessPuzzle): ProcessedPuzzle {
+  const fen = fenAtPly(raw.game.pgn, raw.puzzle.initialPly);
+  const playerColor = fen.split(' ')[1] as 'w' | 'b';
 
   return {
     id: raw.puzzle.id,
-    fen: puzzle.fen(),
+    fen,
     playerColor,
     solution: raw.puzzle.solution,
     themes: raw.puzzle.themes,
