@@ -18,7 +18,7 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-950 flex flex-col">
+    <div className="min-h-screen bg-[#111] flex flex-col">
       <Header />
 
       <main className="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 py-4">

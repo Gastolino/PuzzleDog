@@ -3,10 +3,25 @@
 @tailwind utilities;
 
 body {
-  @apply bg-gray-950 text-gray-100 min-h-screen;
+  background-color: #111111;
+  color: #e2dfd8;
+  min-height: 100vh;
   -webkit-tap-highlight-color: transparent;
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* Prevent text selection and native drag on the chess board */
+.board-wrap {
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.board-wrap img {
+  -webkit-user-drag: none;
+  user-drag: none;
+  pointer-events: none;
 }

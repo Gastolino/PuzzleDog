@@ -179,8 +179,8 @@ export const useAppStore = create<AppState>()(
         if (!isCorrect) {
           // Flash red on wrong square
           const flash: Record<string, { backgroundColor: string }> = {
-            [from]: { backgroundColor: 'rgba(239,68,68,0.6)' },
-            [to]: { backgroundColor: 'rgba(239,68,68,0.6)' },
+            [from]: { backgroundColor: 'rgba(180,80,80,0.45)' },
+            [to]: { backgroundColor: 'rgba(180,80,80,0.45)' },
           };
           set({
             wrongMoves: state.wrongMoves + 1,
@@ -205,8 +205,8 @@ export const useAppStore = create<AppState>()(
 
         // Flash green on correct move
         const flash: Record<string, { backgroundColor: string }> = {
-          [from]: { backgroundColor: 'rgba(34,197,94,0.5)' },
-          [to]: { backgroundColor: 'rgba(34,197,94,0.5)' },
+          [from]: { backgroundColor: 'rgba(100,160,100,0.4)' },
+          [to]: { backgroundColor: 'rgba(100,160,100,0.4)' },
         };
 
         // Check if puzzle is complete after player move

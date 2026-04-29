@@ -1,227 +1,122 @@
 import React from 'react';
 import { useAppStore } from '../../store/appStore';
 import { getPerformanceLabel } from '../../utils/rating';
-import type { ThemeStat } from '../../types';
 
-// ── SVG Sparkline ──────────────────────────────────────────────────────────────
-
-interface SparklineProps {
-  data: number[];
-  width?: number;
-  height?: number;
-}
-
-const Sparkline: React.FC<SparklineProps> = ({ data, width = 300, height = 60 }) => {
-  if (data.length < 2) {
+function Sparkline({ history }: { history: { rating: number }[] }) {
+  const points = history.slice(-20);
+  if (points.length < 2) {
     return (
-      <div
-        className="flex items-center justify-center text-xs text-gray-600"
-        style={{ width, height }}
-      >
-        Not enough data
+      <div className="h-12 flex items-center justify-center text-xs text-[#4a4a46]">
+        Solve more puzzles to see history
       </div>
     );
   }
-
-  const min = Math.min(...data);
-  const max = Math.max(...data);
+  const ratings = points.map(p => p.rating);
+  const min = Math.min(...ratings);
+  const max = Math.max(...ratings);
   const range = max - min || 1;
-  const padX = 8;
-  const padY = 8;
-  const chartW = width - padX * 2;
-  const chartH = height - padY * 2;
+  const W = 220, H = 48, P = 4;
 
-  const points = data.map((v, i) => {
-    const x = padX + (i / (data.length - 1)) * chartW;
-    const y = padY + chartH - ((v - min) / range) * chartH;
+  const pts = points.map((p, i) => {
+    const x = P + (i / (points.length - 1)) * (W - P * 2);
+    const y = H - P - ((p.rating - min) / range) * (H - P * 2);
     return `${x.toFixed(1)},${y.toFixed(1)}`;
   });
 
-  const lastPoint = points[points.length - 1].split(',');
-
   return (
-    <svg width={width} height={height} className="overflow-visible">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-12">
       <polyline
-        points={points.join(' ')}
+        points={pts.join(' ')}
         fill="none"
-        stroke="#f59e0b"
-        strokeWidth="2"
+        stroke="#888882"
+        strokeWidth="1.5"
         strokeLinejoin="round"
         strokeLinecap="round"
       />
-      {/* End dot */}
-      <circle
-        cx={parseFloat(lastPoint[0])}
-        cy={parseFloat(lastPoint[1])}
-        r={3}
-        fill="#f59e0b"
-      />
+      <circle cx={pts[pts.length - 1].split(',')[0]} cy={pts[pts.length - 1].split(',')[1]} r="2.5" fill="#e2dfd8" />
     </svg>
   );
-};
-
-// ── Theme Row ──────────────────────────────────────────────────────────────────
-
-interface ThemeRowProps {
-  theme: string;
-  stat: ThemeStat;
 }
 
-const ThemeRow: React.FC<ThemeRowProps> = ({ theme, stat }) => {
-  const rate = stat.attempts > 0 ? stat.solved / stat.attempts : 0;
-  const { label, color } = getPerformanceLabel(rate);
-  const pct = Math.round(rate * 100);
-
-  return (
-    <div className="bg-gray-800 rounded-lg p-3">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="text-sm font-medium text-gray-200 capitalize">
-          {theme.replace(/([A-Z])/g, ' $1').trim()}
-        </span>
-        <div className="flex items-center gap-2">
-          <span className={`text-xs font-semibold ${color}`}>{label}</span>
-          <span className="text-xs text-gray-400">
-            {stat.solved}/{stat.attempts}
-          </span>
-        </div>
-      </div>
-      <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
-        <div
-          className={`h-full rounded-full transition-all duration-300 ${
-            pct >= 80
-              ? 'bg-green-500'
-              : pct >= 60
-                ? 'bg-blue-500'
-                : pct >= 40
-                  ? 'bg-yellow-500'
-                  : 'bg-red-500'
-          }`}
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <div className="flex justify-between mt-1 text-xs text-gray-500">
-        <span>{pct}% success</span>
-        {stat.avgTime > 0 && (
-          <span>avg {(stat.avgTime / 1000).toFixed(0)}s</span>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// ── Main Component ─────────────────────────────────────────────────────────────
-
 export const StatsPanel: React.FC = () => {
-  const { rating, ratingHistory, themeStats, streak, totalSolved, totalAttempted } =
-    useAppStore();
+  const { rating, ratingHistory, themeStats, streak, totalSolved, totalAttempted } = useAppStore();
 
-  const last20 = ratingHistory.slice(-20);
+  const accuracy = totalAttempted > 0 ? Math.round((totalSolved / totalAttempted) * 100) : 0;
   const last10 = ratingHistory.slice(-10);
-  const ratingTrend =
-    last10.length >= 2 ? last10[last10.length - 1].rating - last10[0].rating : 0;
+  const trend = last10.length >= 2 ? last10[last10.length - 1].rating - last10[0].rating : 0;
 
-  const overallRate =
-    totalAttempted > 0 ? Math.round((totalSolved / totalAttempted) * 100) : 0;
-
-  // Sort themes by success rate (worst first)
   const sortedThemes = Object.entries(themeStats)
     .filter(([, s]) => s.attempts > 0)
-    .sort(([, a], [, b]) => {
-      const rateA = a.solved / a.attempts;
-      const rateB = b.solved / b.attempts;
-      return rateA - rateB;
-    });
-
-  const wins = ratingHistory.filter((e) => e.result === 'win').length;
-  const losses = ratingHistory.filter((e) => e.result === 'loss').length;
+    .sort(([, a], [, b]) => a.solved / a.attempts - b.solved / b.attempts);
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
-      {/* Rating Card */}
-      <div className="bg-gray-800 rounded-xl p-6 border border-gray-700">
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-4">
-          Rating
-        </h2>
-        <div className="flex items-end gap-4 mb-4">
-          <span className="text-6xl font-bold text-amber-400">{rating}</span>
-          {ratingTrend !== 0 && (
-            <div
-              className={`flex items-center gap-1 mb-2 ${
-                ratingTrend > 0 ? 'text-green-400' : 'text-red-400'
-              }`}
-            >
-              <span className="text-xl">{ratingTrend > 0 ? '▲' : '▼'}</span>
-              <span className="text-lg font-semibold">{Math.abs(ratingTrend)}</span>
-              <span className="text-sm text-gray-500 ml-1">last 10</span>
+    <div className="max-w-lg mx-auto space-y-3 px-2">
+      {/* Rating */}
+      <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded p-5">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <p className="text-xs text-[#4a4a46] mb-1">Rating</p>
+            <p className="text-4xl font-semibold text-[#e2dfd8]">{rating}</p>
+            {trend !== 0 && (
+              <p className={`text-xs mt-1 ${trend > 0 ? 'text-[#a8c8a8]' : 'text-[#c8a8a8]'}`}>
+                {trend > 0 ? '+' : ''}{trend} last 10
+              </p>
+            )}
+          </div>
+          {streak > 0 && (
+            <div className="text-right">
+              <p className="text-2xl font-semibold text-[#e2dfd8]">{streak}</p>
+              <p className="text-xs text-[#4a4a46]">streak</p>
             </div>
           )}
         </div>
-
-        {/* Sparkline */}
-        {last20.length >= 2 ? (
-          <div className="w-full overflow-hidden">
-            <Sparkline
-              data={last20.map((e) => e.rating)}
-              width={400}
-              height={70}
-            />
-            <p className="text-xs text-gray-500 mt-1">Last {last20.length} puzzles</p>
-          </div>
-        ) : (
-          <p className="text-xs text-gray-600 italic">Solve puzzles to see your rating history</p>
-        )}
+        <Sparkline history={ratingHistory} />
       </div>
 
-      {/* Overall Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="bg-gray-800 rounded-lg p-4 text-center border border-gray-700">
-          <p className="text-2xl font-bold text-green-400">{totalSolved}</p>
-          <p className="text-xs text-gray-400 mt-1">Solved</p>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-4 text-center border border-gray-700">
-          <p className="text-2xl font-bold text-gray-300">{totalAttempted}</p>
-          <p className="text-xs text-gray-400 mt-1">Attempted</p>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-4 text-center border border-gray-700">
-          <p className="text-2xl font-bold text-orange-400">{streak}</p>
-          <p className="text-xs text-gray-400 mt-1">🔥 Streak</p>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-4 text-center border border-gray-700">
-          <p className="text-2xl font-bold text-blue-400">{overallRate}%</p>
-          <p className="text-xs text-gray-400 mt-1">Success Rate</p>
-        </div>
+      {/* Counters */}
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { label: 'Solved',    value: totalSolved    },
+          { label: 'Attempted', value: totalAttempted },
+          { label: 'Accuracy',  value: `${accuracy}%` },
+        ].map(({ label, value }) => (
+          <div key={label} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded p-3 text-center">
+            <p className="text-xl font-semibold text-[#e2dfd8]">{value}</p>
+            <p className="text-xs text-[#4a4a46] mt-0.5">{label}</p>
+          </div>
+        ))}
       </div>
 
-      {/* Win/Loss */}
-      {(wins > 0 || losses > 0) && (
-        <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
-          <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            Results
-          </h3>
-          <div className="flex gap-4 text-sm">
-            <span className="text-green-400 font-semibold">✓ {wins} wins</span>
-            <span className="text-red-400 font-semibold">✗ {losses} losses</span>
-            <span className="text-yellow-400 font-semibold">
-              ~ {ratingHistory.length - wins - losses} partial
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Theme Performance */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
-          Theme Performance (Weakest First)
-        </h2>
+      {/* Theme breakdown */}
+      <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded p-4">
+        <p className="text-xs text-[#4a4a46] uppercase tracking-wider mb-3">By Theme</p>
         {sortedThemes.length === 0 ? (
-          <div className="bg-gray-800 rounded-lg p-6 text-center text-gray-500 text-sm border border-gray-700">
-            Solve themed puzzles to see your performance breakdown
-          </div>
+          <p className="text-xs text-[#4a4a46] text-center py-4">No data yet</p>
         ) : (
-          <div className="space-y-2">
-            {sortedThemes.map(([theme, stat]) => (
-              <ThemeRow key={theme} theme={theme} stat={stat} />
-            ))}
+          <div className="space-y-3">
+            {sortedThemes.map(([theme, stat]) => {
+              const rate = stat.solved / stat.attempts;
+              const pct = Math.round(rate * 100);
+              const { label } = getPerformanceLabel(rate);
+              return (
+                <div key={theme}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-sm text-[#e2dfd8] capitalize">
+                      {theme.replace(/([A-Z])/g, ' $1').trim()}
+                    </span>
+                    <span className="text-xs text-[#888882]">
+                      {label} · {stat.solved}/{stat.attempts}
+                    </span>
+                  </div>
+                  <div className="h-1 bg-[#222] rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-[#888882] rounded-full transition-all"
+                      style={{ width: `${pct}%`, opacity: 0.4 + rate * 0.6 }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

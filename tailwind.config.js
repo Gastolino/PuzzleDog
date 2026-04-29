@@ -4,17 +4,17 @@ export default {
   theme: {
     extend: {
       colors: {
-        chess: {
-          light: '#f0d9b5',
-          dark: '#b58863',
-          highlight: '#aaa23a',
-          selected: '#f6f669',
-          correct: '#22c55e',
-          wrong: '#ef4444',
-        },
-      },
-      backgroundImage: {
-        'gradient-chess': 'linear-gradient(135deg, #1e1e2e 0%, #181825 100%)',
+        // Off-black surfaces
+        canvas:  '#111111',
+        surface: '#1a1a1a',
+        raised:  '#222222',
+        // Borders
+        border:  '#2a2a2a',
+        'border-hi': '#363636',
+        // Off-white text
+        ink:     '#e2dfd8',
+        'ink-dim':   '#888882',
+        'ink-muted': '#4a4a46',
       },
     },
   },
