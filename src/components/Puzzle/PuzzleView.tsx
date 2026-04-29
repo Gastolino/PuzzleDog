@@ -1,6 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAppStore } from '../../store/appStore';
 import { ChessBoard } from '../Board/ChessBoard';
+
+const BOARD_THEMES: { name: string; light: string; dark: string }[] = [
+  { name: 'Slate',  light: '#e8e5de', dark: '#272523' },
+  { name: 'Green',  light: '#eeeed2', dark: '#769656' },
+  { name: 'Brown',  light: '#f0d9b5', dark: '#b58863' },
+  { name: 'Blue',   light: '#dee3e6', dark: '#8ca2ad' },
+  { name: 'Navy',   light: '#dce8ef', dark: '#4d6d8e' },
+  { name: 'Ink',    light: '#6b6057', dark: '#2b2018' },
+];
 
 export const PuzzleView: React.FC = () => {
   const {
@@ -13,12 +22,17 @@ export const PuzzleView: React.FC = () => {
     flashSquares,
     hintSquare,
     rating,
+    boardLightColor,
+    boardDarkColor,
     tryMove,
     useHint,
     solvePuzzle,
     nextPuzzle,
     loadPuzzle,
+    setBoardColors,
   } = useAppStore();
+
+  const [boardOpen, setBoardOpen] = useState(false);
 
   if (status === 'idle') {
     return (
@@ -43,10 +57,12 @@ export const PuzzleView: React.FC = () => {
 
   if (!currentPuzzle) return null;
 
-  // Board is interactive only when the player should be moving
   const isSolving = status === 'solving' || status === 'failed';
-  // During solution playback (status=loading after gaveUp trigger), board is locked
   const isPlaying = status === 'loading' && !!currentPuzzle;
+
+  const activeThemeIdx = BOARD_THEMES.findIndex(
+    t => t.light === boardLightColor && t.dark === boardDarkColor
+  );
 
   return (
     <div className="flex flex-col gap-3 w-full">
@@ -67,6 +83,8 @@ export const PuzzleView: React.FC = () => {
           flashSquares={flashSquares}
           hintSquare={hintSquare}
           disabled={!isSolving}
+          lightSquareColor={boardLightColor}
+          darkSquareColor={boardDarkColor}
         />
 
         {/* Solution playback overlay */}
@@ -126,6 +144,61 @@ export const PuzzleView: React.FC = () => {
           )}
         </div>
       )}
+
+      {/* Board theme picker */}
+      <div className="border-t border-[#1e1e1e] pt-2">
+        <button
+          onClick={() => setBoardOpen(o => !o)}
+          className="text-xs text-[#4a4a46] hover:text-[#888882] transition-colors"
+        >
+          Board {boardOpen ? '▲' : '▼'}
+        </button>
+
+        {boardOpen && (
+          <div className="mt-2 flex flex-col gap-3">
+            {/* Preset swatches */}
+            <div className="flex flex-wrap gap-2">
+              {BOARD_THEMES.map((theme, i) => (
+                <button
+                  key={theme.name}
+                  title={theme.name}
+                  onClick={() => setBoardColors(theme.light, theme.dark)}
+                  className="flex rounded overflow-hidden transition-opacity hover:opacity-80"
+                  style={{
+                    outline: activeThemeIdx === i ? '2px solid #e2dfd8' : '2px solid transparent',
+                    outlineOffset: '2px',
+                  }}
+                >
+                  <span className="w-5 h-5 block" style={{ backgroundColor: theme.light }} />
+                  <span className="w-5 h-5 block" style={{ backgroundColor: theme.dark }} />
+                </button>
+              ))}
+            </div>
+
+            {/* Custom color inputs */}
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-1.5 text-xs text-[#888882]">
+                <input
+                  type="color"
+                  value={boardLightColor}
+                  onChange={e => setBoardColors(e.target.value, boardDarkColor)}
+                  className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0"
+                />
+                Light
+              </label>
+              <label className="flex items-center gap-1.5 text-xs text-[#888882]">
+                <input
+                  type="color"
+                  value={boardDarkColor}
+                  onChange={e => setBoardColors(boardLightColor, e.target.value)}
+                  className="w-6 h-6 rounded cursor-pointer border-0 bg-transparent p-0"
+                />
+                Dark
+              </label>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

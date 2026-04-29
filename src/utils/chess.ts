@@ -1,4 +1,5 @@
 import { Chess } from 'chess.js';
+import type { Square } from 'chess.js';
 import type { LichessPuzzle, ProcessedPuzzle } from '../types';
 
 export function uciToMove(uci: string): { from: string; to: string; promotion?: string } {
@@ -24,10 +25,16 @@ export function processPuzzle(raw: LichessPuzzle): ProcessedPuzzle {
     puzzle.move(history[i]);
   }
 
+  // Derive player color from the piece on the from-square of solution[0].
+  // This is ground truth from Lichess and avoids any off-by-one in initialPly.
+  const firstFrom = (raw.puzzle.solution[0] ?? '').slice(0, 2) as Square;
+  const pieceAtFrom = firstFrom ? puzzle.get(firstFrom) : null;
+  const playerColor: 'w' | 'b' = pieceAtFrom?.color ?? puzzle.turn();
+
   return {
     id: raw.puzzle.id,
     fen: puzzle.fen(),
-    playerColor: puzzle.turn(),
+    playerColor,
     solution: raw.puzzle.solution,
     themes: raw.puzzle.themes,
     rating: raw.puzzle.rating,

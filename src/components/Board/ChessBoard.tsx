@@ -8,6 +8,8 @@ interface Props {
   flashSquares?: Record<string, { backgroundColor: string }>;
   hintSquare?: string | null;
   disabled?: boolean;
+  lightSquareColor?: string;
+  darkSquareColor?: string;
 }
 
 const PROMOTION_PIECES = ['q', 'r', 'b', 'n'] as const;
@@ -39,6 +41,8 @@ export const ChessBoard: React.FC<Props> = ({
   flashSquares = {},
   hintSquare,
   disabled = false,
+  lightSquareColor = '#e8e5de',
+  darkSquareColor = '#272523',
 }) => {
   const [selected, setSelected] = useState<string | null>(null);
   const [pendingPromo, setPendingPromo] = useState<{ from: string; to: string } | null>(null);
@@ -164,8 +168,8 @@ export const ChessBoard: React.FC<Props> = ({
           borderRadius: '3px',
           boxShadow: '0 4px 32px rgba(0,0,0,0.6)',
         }}
-        customLightSquareStyle={{ backgroundColor: '#e8e5de' }}
-        customDarkSquareStyle={{ backgroundColor: '#272523' }}
+        customLightSquareStyle={{ backgroundColor: lightSquareColor }}
+        customDarkSquareStyle={{ backgroundColor: darkSquareColor }}
       />
 
       {/* Promotion dialog */}

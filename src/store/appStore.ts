@@ -18,6 +18,8 @@ interface PersistedState {
   totalAttempted: number;
   /** Rolling list of recently-seen puzzle IDs — avoids immediate repeats offline. */
   seenIds: string[];
+  boardLightColor: string;
+  boardDarkColor: string;
 }
 
 interface SessionState {
@@ -49,6 +51,7 @@ interface AppActions {
   nextPuzzle: () => Promise<void>;
   setTheme: (theme: string | null) => void;
   setView: (view: View) => void;
+  setBoardColors: (light: string, dark: string) => void;
 }
 
 type AppState = PersistedState & SessionState & AppActions;
@@ -121,6 +124,8 @@ export const useAppStore = create<AppState>()(
       totalSolved: 0,
       totalAttempted: 0,
       seenIds: [],
+      boardLightColor: '#e8e5de',
+      boardDarkColor: '#272523',
 
       // Session
       ...defaultSession,
@@ -352,17 +357,20 @@ export const useAppStore = create<AppState>()(
 
       setTheme: theme => set({ selectedTheme: theme }),
       setView:  view  => set({ view }),
+      setBoardColors: (light, dark) => set({ boardLightColor: light, boardDarkColor: dark }),
     }),
     {
       name: 'puzzledog',
       partialize: state => ({
-        rating:        state.rating,
-        ratingHistory: state.ratingHistory,
-        themeStats:    state.themeStats,
-        streak:        state.streak,
-        totalSolved:   state.totalSolved,
-        totalAttempted: state.totalAttempted,
-        seenIds:       state.seenIds,
+        rating:          state.rating,
+        ratingHistory:   state.ratingHistory,
+        themeStats:      state.themeStats,
+        streak:          state.streak,
+        totalSolved:     state.totalSolved,
+        totalAttempted:  state.totalAttempted,
+        seenIds:         state.seenIds,
+        boardLightColor: state.boardLightColor,
+        boardDarkColor:  state.boardDarkColor,
       }),
     }
   )
