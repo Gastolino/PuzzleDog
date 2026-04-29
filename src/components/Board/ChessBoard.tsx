@@ -164,8 +164,8 @@ export const ChessBoard: React.FC<Props> = ({
           borderRadius: '3px',
           boxShadow: '0 4px 32px rgba(0,0,0,0.6)',
         }}
-        customLightSquareStyle={{ backgroundColor: '#f0d9b5' }}
-        customDarkSquareStyle={{ backgroundColor: '#b58863' }}
+        customLightSquareStyle={{ backgroundColor: '#e8e5de' }}
+        customDarkSquareStyle={{ backgroundColor: '#272523' }}
       />
 
       {/* Promotion dialog */}
