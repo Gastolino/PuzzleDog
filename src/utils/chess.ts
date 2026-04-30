@@ -34,8 +34,24 @@ function fenAtPly(pgn: string, targetPly: number): string {
 }
 
 export function processPuzzle(raw: LichessPuzzle): ProcessedPuzzle {
-  const fen = fenAtPly(raw.game.pgn, raw.puzzle.initialPly);
-  // Active color in the FEN is exactly who must move — this is ground truth.
+  let fen = fenAtPly(raw.game.pgn, raw.puzzle.initialPly);
+
+  // The piece on solution[0]'s from-square is ground truth for who is moving.
+  // If it disagrees with the FEN active-color field (can happen when one parseSan
+  // call fails inside fenAtPly and we exit the loop one ply early), patch the FEN.
+  const firstFrom = raw.puzzle.solution[0]?.slice(0, 2) ?? '';
+  if (firstFrom) {
+    const piece = pieceAt(fen, firstFrom);
+    if (piece) {
+      const parts = fen.split(' ');
+      if (parts[1] !== piece.color) {
+        parts[1] = piece.color;
+        parts[3] = '-'; // clear stale en-passant square
+        fen = parts.join(' ');
+      }
+    }
+  }
+
   const playerColor = fen.split(' ')[1] as 'w' | 'b';
   return {
     id:         raw.puzzle.id,
