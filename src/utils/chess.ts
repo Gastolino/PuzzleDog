@@ -1,5 +1,4 @@
-import { parsePgn, startingPosition } from 'chessops/pgn';
-import { parseSan } from 'chessops/san';
+import { Chess as ChessJs } from 'chess.js';
 import { Chess } from 'chessops/chess';
 import { makeFen, parseFen, INITIAL_FEN } from 'chessops/fen';
 import { parseUci } from 'chessops/util';
@@ -7,52 +6,24 @@ import type { LichessPuzzle, ProcessedPuzzle } from '../types';
 
 // ─── Puzzle processing ────────────────────────────────────────────────────────
 
-/** Replay exactly `targetPly` half-moves from the PGN using chessops and
- *  return the resulting FEN. This is Lichess's own library so it handles all
- *  their PGN annotation formats ([%eval], [%clk], etc.) correctly. */
-function fenAtPly(pgn: string, targetPly: number): string {
-  try {
-    const games = parsePgn(pgn);
-    const game = games[0];
-    if (!game) return INITIAL_FEN;
-
-    const pos = startingPosition(game.headers).unwrap();
-    let ply = 0;
-
-    for (const node of game.moves.mainline()) {
-      if (ply >= targetPly) break;
-      const move = parseSan(pos, node.san);
-      if (!move) break;
-      pos.play(move);
-      ply++;
-    }
-
-    return makeFen(pos.toSetup());
-  } catch {
-    return INITIAL_FEN;
-  }
-}
-
 export function processPuzzle(raw: LichessPuzzle): ProcessedPuzzle {
-  let fen = fenAtPly(raw.game.pgn, raw.puzzle.initialPly);
-
-  // The piece on solution[0]'s from-square is ground truth for who is moving.
-  // If it disagrees with the FEN active-color field (can happen when one parseSan
-  // call fails inside fenAtPly and we exit the loop one ply early), patch the FEN.
-  const firstFrom = raw.puzzle.solution[0]?.slice(0, 2) ?? '';
-  if (firstFrom) {
-    const piece = pieceAt(fen, firstFrom);
-    if (piece) {
-      const parts = fen.split(' ');
-      if (parts[1] !== piece.color) {
-        parts[1] = piece.color;
-        parts[3] = '-'; // clear stale en-passant square
-        fen = parts.join(' ');
-      }
+  let fen         = INITIAL_FEN;
+  let playerColor: 'w' | 'b' = 'w';
+  try {
+    // chess.js loadPgn handles all Lichess annotation formats (%eval, %clk, etc.)
+    // without the parseSan brittleness that chessops has on some positions.
+    // Objects are local — nothing mutable reaches Zustand state.
+    const game = new ChessJs();
+    game.loadPgn(raw.game.pgn);
+    const history = game.history({ verbose: true });
+    const board   = new ChessJs();
+    for (let i = 0; i < raw.puzzle.initialPly && i < history.length; i++) {
+      board.move(history[i]);
     }
-  }
+    fen         = board.fen();
+    playerColor = board.turn();
+  } catch { /* fall through — use INITIAL_FEN / 'w' */ }
 
-  const playerColor = fen.split(' ')[1] as 'w' | 'b';
   return {
     id:         raw.puzzle.id,
     fen,

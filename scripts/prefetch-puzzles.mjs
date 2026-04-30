@@ -40,11 +40,12 @@ function processPuzzle(raw) {
       board.move(history[i]);
     }
     return {
-      id:       raw.puzzle.id,
-      fen:      board.fen(),
-      solution: raw.puzzle.solution,
-      themes:   raw.puzzle.themes,
-      rating:   raw.puzzle.rating,
+      id:          raw.puzzle.id,
+      fen:         board.fen(),
+      playerColor: board.turn(),
+      solution:    raw.puzzle.solution,
+      themes:      raw.puzzle.themes,
+      rating:      raw.puzzle.rating,
     };
   } catch {
     return null;
