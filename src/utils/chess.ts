@@ -1,18 +1,15 @@
 import { parsePgn, startingPosition } from 'chessops/pgn';
 import { parseSan } from 'chessops/san';
-import { makeFen, INITIAL_FEN } from 'chessops/fen';
+import { Chess } from 'chessops/chess';
+import { makeFen, parseFen, INITIAL_FEN } from 'chessops/fen';
+import { parseUci } from 'chessops/util';
 import type { LichessPuzzle, ProcessedPuzzle } from '../types';
 
-export function uciToMove(uci: string): { from: string; to: string; promotion?: string } {
-  return {
-    from: uci.slice(0, 2),
-    to: uci.slice(2, 4),
-    ...(uci.length === 5 ? { promotion: uci[4] } : {}),
-  };
-}
+// ─── Puzzle processing ────────────────────────────────────────────────────────
 
-/** Uses chessops (Lichess's own chess library) to replay the game PGN to
- *  exactly initialPly half-moves, returning the correct puzzle FEN. */
+/** Replay exactly `targetPly` half-moves from the PGN using chessops and
+ *  return the resulting FEN. This is Lichess's own library so it handles all
+ *  their PGN annotation formats ([%eval], [%clk], etc.) correctly. */
 function fenAtPly(pgn: string, targetPly: number): string {
   try {
     const games = parsePgn(pgn);
@@ -22,9 +19,9 @@ function fenAtPly(pgn: string, targetPly: number): string {
     const pos = startingPosition(game.headers).unwrap();
     let ply = 0;
 
-    for (const nodeData of game.moves.mainline()) {
+    for (const node of game.moves.mainline()) {
       if (ply >= targetPly) break;
-      const move = parseSan(pos, nodeData.san);
+      const move = parseSan(pos, node.san);
       if (!move) break;
       pos.play(move);
       ply++;
@@ -38,27 +35,65 @@ function fenAtPly(pgn: string, targetPly: number): string {
 
 export function processPuzzle(raw: LichessPuzzle): ProcessedPuzzle {
   const fen = fenAtPly(raw.game.pgn, raw.puzzle.initialPly);
+  // Active color in the FEN is exactly who must move — this is ground truth.
   const playerColor = fen.split(' ')[1] as 'w' | 'b';
-
   return {
-    id: raw.puzzle.id,
+    id:         raw.puzzle.id,
     fen,
     playerColor,
-    solution: raw.puzzle.solution,
-    themes: raw.puzzle.themes,
-    rating: raw.puzzle.rating,
+    solution:   raw.puzzle.solution,
+    themes:     raw.puzzle.themes,
+    rating:     raw.puzzle.rating,
   };
 }
 
-export function centipawnsToLabel(cp: number, isWhitePerspective: boolean): string {
-  const adjusted = isWhitePerspective ? cp : -cp;
-  if (adjusted > 0) return `+${(adjusted / 100).toFixed(1)}`;
-  return (adjusted / 100).toFixed(1);
+// ─── Position helpers ─────────────────────────────────────────────────────────
+
+/** Apply a UCI move string to a FEN and return the resulting FEN.
+ *  Returns the original FEN unchanged if anything fails. */
+export function applyUci(fen: string, uci: string): string {
+  try {
+    const setup = parseFen(fen).unwrap();
+    const pos   = Chess.fromSetup(setup).unwrap();
+    const move  = parseUci(uci);
+    if (!move) return fen;
+    pos.play(move);
+    return makeFen(pos.toSetup());
+  } catch {
+    return fen;
+  }
+}
+
+/** Return the piece at a square from a FEN string, or null if empty.
+ *  `type` is the lowercase piece letter: p n b r q k */
+export function pieceAt(
+  fen: string,
+  sq: string
+): { type: string; color: 'w' | 'b' } | null {
+  const [board] = fen.split(' ');
+  const file    = sq.charCodeAt(0) - 97; // a=0 … h=7
+  const rank    = 8 - parseInt(sq[1]);   // rank8=row0 … rank1=row7
+  const row     = board.split('/')[rank] ?? '';
+  let col = 0;
+  for (const c of row) {
+    if (c >= '1' && c <= '8') { col += +c; continue; }
+    if (col === file) {
+      return { type: c.toLowerCase(), color: c === c.toUpperCase() ? 'w' : 'b' };
+    }
+    col++;
+  }
+  return null;
+}
+
+// ─── Eval display helpers ─────────────────────────────────────────────────────
+
+export function centipawnsToLabel(cp: number, whitePov: boolean): string {
+  const v = whitePov ? cp : -cp;
+  return v > 0 ? `+${(v / 100).toFixed(1)}` : (v / 100).toFixed(1);
 }
 
 export function evalToBarPercent(cp: number | undefined, mate: number | undefined): number {
   if (mate !== undefined) return mate > 0 ? 100 : 0;
-  if (cp === undefined) return 50;
-  const clamped = Math.max(-1000, Math.min(1000, cp));
-  return 50 + (clamped / 1000) * 50;
+  if (cp  === undefined)  return 50;
+  return 50 + (Math.max(-1000, Math.min(1000, cp)) / 1000) * 50;
 }

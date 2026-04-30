@@ -59,7 +59,9 @@ export const PuzzleView: React.FC = () => {
   if (!currentPuzzle) return null;
 
   const isSolving = status === 'solving' || status === 'failed';
-  const isPlaying = status === 'loading' && !!currentPuzzle;
+  // Only show "Showing solution…" during solvePuzzle playback (gaveUp set early),
+  // not during the 500ms opponent auto-play window (status stays 'solving' there).
+  const isPlaying = status === 'loading' && !!currentPuzzle && gaveUp;
 
   const activeThemeIdx = BOARD_THEMES.findIndex(
     t => t.light === boardLightColor && t.dark === boardDarkColor
